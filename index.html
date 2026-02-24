@@ -31,7 +31,7 @@
         .btn-sec { background: none; border: 1px solid var(--accent); color: var(--deep-taupe); padding: 8px; border-radius: 10px; cursor: pointer; margin-top: 5px; width: 100%; }
         
         .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: white; z-index: 1000; overflow-y: auto; display: none; }
-        .img-preview { width: 100%; height: 200px; object-fit: cover; border-radius: 15px; margin-bottom: 10px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--soft-pink); }
+        .img-preview { width: 100%; height: 200px; object-fit: cover; border-radius: 15px; margin-bottom: 10px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--soft-pink); color: #999; font-size: 0.9rem; }
         
         .badge { padding: 12px; border-radius: 15px; font-weight: bold; display: block; text-align: center; margin-top: 20px; }
         .available { background: #E2F3E2; color: #2E7D32; border: 1px solid #C8E6C9; }
@@ -59,7 +59,7 @@
 </div>
 
 <div id="estoque" class="container" style="display:none">
-    <button class="btn-main" onclick="abrirModal('modal-estoque')">+ Adicionar Item ao Estoque</button>
+    <button class="btn-main" onclick="abrirModal('modal-estoque')">+ Adicionar ao Estoque</button>
     <div id="lista-estoque" style="margin-top:20px"></div>
 </div>
 
@@ -100,11 +100,12 @@
         <input type="file" id="rec-file" accept="image/*" onchange="previewImg(this, 'preview-rec')">
         <div id="preview-rec" class="img-preview">Toque para selecionar foto</div>
 
-        <select id="rec-cat">
+        <select id="rec-cat" onchange="checkOutro(this, 'div-outro-cat')">
             <option value="Comidas">Comidas</option>
             <option value="Lanches">Lanches</option>
+            <option value="Café da manhã/tarde">Café da manhã/tarde</option>
             <option value="Sobremesas">Sobremesas</option>
-            <option value="Outro" onchange="checkOutro(this, 'div-outro-cat')">Outro...</option>
+            <option value="Outro">Outro...</option>
         </select>
         <div id="div-outro-cat" style="display:none">
             <input type="text" id="rec-cat-outro" placeholder="Qual categoria?">
@@ -131,7 +132,7 @@
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('mape_v3')) || { estoque: [], receitas: [] };
+    let db = JSON.parse(localStorage.getItem('mape_v4')) || { estoque: [], receitas: [] };
     let tempImg = "";
 
     function showTab(tab) {
@@ -194,7 +195,7 @@
         div.className = 'item-row';
         let options = db.estoque.map(i => `<option value="${i.nome}">${i.nome}</option>`).join('');
         div.innerHTML = `
-            <select class="ing-sel" style="margin:0; flex: 2;">${options ? options : '<option>Cadastre itens no estoque primeiro!</option>'}</select>
+            <select class="ing-sel" style="margin:0; flex: 2;">${options ? options : '<option>Cadastre itens no estoque!</option>'}</select>
             <input type="number" class="ing-qtd" placeholder="Qtd" style="width:70px; margin:0; flex: 1;">
             <span class="del-btn" onclick="this.parentElement.remove()">×</span>
         `;
@@ -241,7 +242,6 @@
         r.ingredientes.forEach(ing => {
             const est = db.estoque.find(e => e.nome === ing.nome);
             if(!est || est.qtd < ing.qtd) {
-                const qtdFaltante = est ? (ing.qtd - est.qtd) : ing.qtd;
                 falta.push(`${ing.nome}`);
             }
         });
@@ -251,7 +251,7 @@
             : `<div class="badge missing">✗ Falta no estoque para esta receita:<br>${falta.join(', ')}</div>`;
 
         document.getElementById('conteudo-detalhe').innerHTML = `
-            <button class="btn-sec" onclick="fecharModais()" style="width:auto; margin-bottom: 15px;">← Voltar para a lista</button>
+            <button class="btn-sec" onclick="fecharModais()" style="width:auto; margin-bottom: 15px;">← Voltar</button>
             <h2 style="font-family:'Playfair Display'; margin-bottom: 5px;">${r.nome}</h2>
             <small style="color: var(--accent); display:block; margin-bottom: 15px;">Categoria: ${r.categoria}</small>
             
@@ -269,13 +269,13 @@
 
             ${statusHtml}
             
-            <button class="btn-sec" onclick="removerItem('receitas', ${r.id})" style="color:#E57373; margin-top:40px; border-color:#FFEBEE; font-size: 0.8rem;">Apagar esta receita para sempre</button>
+            <button class="btn-sec" onclick="removerItem('receitas', ${r.id})" style="color:#E57373; margin-top:40px; border-color:#FFEBEE; font-size: 0.8rem;">Apagar receita</button>
         `;
         abrirModal('modal-detalhe');
     }
 
     function removerItem(tipo, id) {
-        if(confirm("Tem certeza que deseja remover este item?")) {
+        if(confirm("Deseja remover este item?")) {
             db[tipo] = db[tipo].filter(x => x.id !== id);
             save();
             fecharModais();
@@ -283,12 +283,11 @@
     }
 
     function save() {
-        localStorage.setItem('mape_v3', JSON.stringify(db));
+        localStorage.setItem('mape_v4', JSON.stringify(db));
         render();
     }
 
     function render() {
-        // Render Estoque
         const estDiv = document.getElementById('lista-estoque');
         estDiv.innerHTML = db.estoque.length ? db.estoque.map(i => `
             <div class="card" style="display:flex; align-items:center; gap:15px; cursor: default;">
@@ -296,9 +295,8 @@
                 <div style="flex:1"><b>${i.nome.charAt(0).toUpperCase() + i.nome.slice(1)}</b><br><small style="color: #888;">${i.qtd} ${i.unidade}</small></div>
                 <button class="del-btn" onclick="removerItem('estoque', ${i.id})">🗑</button>
             </div>
-        `).join('') : '<p style="text-align:center; color:#999; margin-top:40px;">O estoque está vazio. Comece adicionando o que você tem em casa!</p>';
+        `).join('') : '<p style="text-align:center; color:#999; margin-top:40px;">Estoque vazio.</p>';
 
-        // Render Receitas
         const recDiv = document.getElementById('lista-receitas');
         recDiv.innerHTML = db.receitas.length ? db.receitas.map(r => `
             <div class="card" onclick="verReceita(${r.id})">
@@ -308,14 +306,10 @@
                     <small style="background: var(--soft-pink); padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;">${r.categoria}</small>
                 </div>
             </div>
-        `).join('') : '<p style="text-align:center; color:#999; margin-top:40px;">Nenhuma receita por aqui ainda. Que tal cadastrar a primeira?</p>';
+        `).join('') : '<p style="text-align:center; color:#999; margin-top:40px;">Nenhuma receita ainda.</p>';
     }
 
-    // Inicialização
-    window.onload = () => {
-        showTab('receitas'); // Força abrir em receitas
-    };
+    window.onload = () => { showTab('receitas'); };
 </script>
-
 </body>
 </html>
