@@ -101,7 +101,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
 <script>
-    // Configurações que você enviou
     const firebaseConfig = {
       apiKey: "AIzaSyBbiM5dHIsbD7TPlPqVlifuHM5kdMrkqX8",
       authDomain: "temperos-mape.firebaseapp.com",
@@ -122,14 +121,16 @@
     // Sincronização em Tempo Real
     dbRef.on('value', (snapshot) => {
         const data = snapshot.val();
-        if (data) {
-            db.estoque = data.estoque ? Object.values(data.estoque) : [];
-            db.receitas = data.receitas ? Object.values(data.receitas) : [];
-        } else {
-            db = { estoque: [], receitas: [] };
-        }
+        db.estoque = (data && data.estoque) ? Object.values(data.estoque) : [];
+        db.receitas = (data && data.receitas) ? Object.values(data.receitas) : [];
         render();
     });
+
+    // Função para capitalizar (Primeira letra Maiúscula)
+    function formatNome(str) {
+        if (!str) return "";
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    }
 
     function save() {
         dbRef.set({
@@ -138,7 +139,6 @@
         });
     }
 
-    // --- FUNÇÕES GERAIS ---
     function showTab(tab) {
         document.getElementById('estoque').style.display = tab === 'estoque' ? 'block' : 'none';
         document.getElementById('receitas').style.display = tab === 'receitas' ? 'block' : 'none';
@@ -169,14 +169,13 @@
 
     function checkOutro(sel, divId) { document.getElementById(divId).style.display = sel.value === 'Outro' ? 'block' : 'none'; }
 
-    // --- LÓGICA ESTOQUE ---
-    function abrirModalEstoque() { fecharModais(); document.getElementById('titulo-modal-est').innerText = "Novo Item"; document.getElementById('modal-estoque').style.display = 'block'; }
-    
     function salvarEstoque() {
         const idEdit = document.getElementById('est-id-edit').value;
-        const nome = document.getElementById('est-nome').value.toLowerCase().trim();
+        const nomeRaw = document.getElementById('est-nome').value.trim();
+        const nome = formatNome(nomeRaw);
         const unBase = document.getElementById('est-un').value;
         const unidade = unBase === 'Outro' ? document.getElementById('est-un-outro').value : unBase;
+        
         if(!nome) return alert("Digite o nome!");
 
         const item = { id: idEdit ? parseInt(idEdit) : Date.now(), nome, qtd: parseFloat(document.getElementById('est-qtd').value) || 0, unidade, foto: tempImg };
@@ -200,7 +199,8 @@
         if(tempImg) document.getElementById('preview-est').innerHTML = `<img src="${tempImg}" style="width:100%; height:100%; object-fit:cover; border-radius:15px">`;
     }
 
-    // --- LÓGICA RECEITA ---
+    function abrirModalEstoque() { fecharModais(); document.getElementById('titulo-modal-est').innerText = "Novo Item"; document.getElementById('modal-estoque').style.display = 'block'; }
+    
     function abrirModalReceita() { 
         fecharModais(); 
         document.getElementById('area-ingredientes').innerHTML = ''; 
@@ -212,7 +212,7 @@
     function addLinhaIngrediente(nome = '', qtd = '') {
         const div = document.createElement('div'); div.className = 'item-row';
         let options = db.estoque.map(i => `<option value="${i.nome}" ${i.nome === nome ? 'selected' : ''}>${i.nome}</option>`).join('');
-        div.innerHTML = `<select class="ing-sel" style="flex:2">${options || '<option>Cadastre no estoque primeiro!</option>'}</select><input type="number" class="ing-qtd" value="${qtd}" style="width:70px; flex:1"><span class="action-btn" onclick="this.parentElement.remove()">×</span>`;
+        div.innerHTML = `<select class="ing-sel" style="flex:2">${options || '<option>Cadastre o estoque!</option>'}</select><input type="number" class="ing-qtd" value="${qtd}" style="width:70px; flex:1"><span class="action-btn" onclick="this.parentElement.remove()">×</span>`;
         document.getElementById('area-ingredientes').appendChild(div);
     }
 
@@ -223,7 +223,8 @@
 
     function salvarReceita() {
         const idEdit = document.getElementById('rec-id-edit').value;
-        const nome = document.getElementById('rec-nome').value.trim();
+        const nomeRaw = document.getElementById('rec-nome').value.trim();
+        const nome = formatNome(nomeRaw);
         const catBase = document.getElementById('rec-cat').value;
         const categoria = catBase === 'Outro' ? document.getElementById('rec-cat-outro').value : catBase;
         const ings = Array.from(document.querySelectorAll('#area-ingredientes .item-row')).map(row => ({
@@ -232,7 +233,7 @@
         }));
         const passos = Array.from(document.querySelectorAll('.passo-txt')).map(i => i.value).filter(v => v);
         
-        if(!nome) return alert("Dê um nome à receita!");
+        if(!nome) return alert("Dê um nome!");
         const rec = { id: idEdit ? parseInt(idEdit) : Date.now(), nome, categoria, foto: tempImg, ingredientes: ings, passos: passos };
 
         if(idEdit) {
@@ -260,7 +261,7 @@
             <h4>Ingredientes:</h4><ul>${r.ingredientes.map(i => `<li>${i.qtd} de ${i.nome}</li>`).join('')}</ul>
             <h4>Preparo:</h4><ol>${r.passos.map(p => `<li>${p}</li>`).join('')}</ol>
             ${statusHtml}
-            <button class="btn-sec" onclick="removerItem('receitas', ${r.id})" style="color:red; margin-top:30px">Excluir Receita</button>`;
+            <button class="btn-sec" onclick="removerItem('receitas', ${r.id})" style="color:red; margin-top:30px">Excluir</button>`;
         document.getElementById('modal-detalhe').style.display = 'block';
     }
 
@@ -277,7 +278,7 @@
     }
 
     function removerItem(tipo, id) {
-        if(confirm("Deseja apagar?")) {
+        if(confirm("Remover?")) {
             db[tipo] = db[tipo].filter(x => x.id !== id);
             save(); fecharModais();
         }
